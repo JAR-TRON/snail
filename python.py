@@ -1,3 +1,6 @@
+# -------------------------
+#   Importing libraries
+# -------------------------
 from selenium import webdriver
 import pandas as pd
 import time
@@ -6,16 +9,51 @@ import warnings
 from ktrain import text
 warnings.filterwarnings("ignore")
 
+# -------------------------
+#    Classes nd Objects
+# -------------------------
 class Classifier:
+    '''
+    ## Introduction
+    Creates a zero shot classifier under Ktrain that uses Natural
+    Language Inference(NLI) to predict the senses of the sentence/
+    word/token.
+    
+    Probabilistic model that doesn't requires model training and 
+    predictions can be made directly calling `predict` method.
+    
+    It'll be called if there is the requirement of predicting 
+    label of any sentence during web crawling.
+    
+    ## Example:
+    ```python
+    >> labels = ["Laptops", "Review", "Price"]
+    >> classifier = Classifier(labels)  # Initialize the classifier
+    >> doc = "XYZ Laptop Name"
+    >> classifier.predict(doc)  # Returns the label that has highest probability
+    Output: (Laptops, probability[float])
+    ```
+    '''
     def __init__(self, labels) -> None:
+        
+        print('Intializing the zero shot classifier')
+        print('It might take some time to execute!!')
         self.zsl = text.ZeroShotClassifier()
         self.labels = labels
+        print('Classifier is initialized!!')
+        print()
     
     def predict(self, doc):
+        '''
+        Make prediction on ZSl classifier
+        '''
         prediction = self.zsl.predict(doc, labels=self.labels, include_labels=True)
         probability = 0
         label = ''
         
+        # Traverse into `prediction` list to give the 
+        ## label that has highest probability among all
+        ## of the other labels.
         for i in range(len(prediction)):
             temp = prediction[i]
             if temp[1] > probability:
@@ -25,6 +63,20 @@ class Classifier:
         return (label, probability)
 
 class Crawler:
+    '''
+    ### Introduction
+    Crawler is used to crawl into the different websites and 
+    performes some basic functionalities.
+    
+    ### Functionalities
+    [1]. Made google search. \n
+    [2]. Fetch all of the links after a google search. \n
+    [3]. Fetch all of the text of any(relevant) html tag in 
+    a website. \n
+    [4]. Fetch all of the html classes of any(relevant) html
+    tag on a page. \n
+    [5]. Get all of the tags that are being used in a website. \n
+    '''
     def __init__(self, driver) -> None:
         self.driver = driver
     
@@ -36,68 +88,104 @@ class Crawler:
     
     def get_all_links(self) -> list:
         '''
-        Used to fetch all the links shown after a google search
-        i.e. links of websites of all results after a google search.
-        
+        Used to fetch all the links of results shown after a
+        google search. \n
         Return a list of all links
         '''
+        
+        # Content of html page
         content = self.driver.page_source
         soup = BeautifulSoup(content)
         links = []
         
-        print('{', end='')
+        # Fetch all links of results shown after google search
         for div in soup.findAll('div', attrs={'class': 'yuRUbf'}):
             address = div.find('a').get('href')
-            print(f"'{address}',")
             links.append(address)
-        print('}')
         return links
     
     def get_text(self, tag, attr={}):
+        '''
+        Returns text inside specified html `tag`.
+        
+        :param tag: A filter on tag name.
+        :param attr: A dictionary of filters on attribute values.
+        
+        ## Example:
+        ```python
+        >>> div = "div"
+        >>> attr = {"class": "xyz"}
+        >>> crawler = Crawler(driver)
+        >>> crawler.get_text(tag = div, attr = attr)
+        Output: ['text_1', 'text_2', ...]
+        ```
+        '''
         assert tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'table',
                     'link', 'div', 'g', 'title', 'ul', 'form', 'button',
                     'b', 'span', 'a', 'head', 'body',
                     ]
         
+        # Content of html page
         content = self.driver.page_source
         soup = BeautifulSoup(content)
         tags = []
         
         for heading in soup.findAll(tag, attrs=attr):
             try:
+                # Getting total number of words in a sentence.
                 heading_len = len(heading.text.split(' '))
+                
+                # Getting text only if it has limit of 25 words.
                 if heading_len <= 25:
-                    # print(heading.text)
                     tags.append(heading.text)
             except:
                 pass
         
+        # Ignore the group if number of sentence are less then 8.
         if 8 <= len(tags):
-            if tags.count(tags[0]) != len(tags) // 2:
+            # Ignore the group if it has higher number of
+            ## repetitive tokens/words.
+            check_return = True
+            for i in tags:
+                if tags.count(tags[i]) < len(tags) // 2:
+                    check_return = True
+                else:
+                    check_return = False
+                    break
+            
+            if check_return:
                 return tags
+            else:
+                return None
     
-    def get_all_classes(self, tags=None):
+    def get_all_classes(self, tag):
+        '''
+        Returns a `set` of html classes of the specified tag.
+        
+        ## Example:
+        >>> h1 = "h1"
+        >>> crawler = Crawler(driver)
+        >>> crawler.get_all_classes(tag = h1)
+        Output: {"class_1", "class_2", ...}
+        '''
         classes = set()
         content = self.driver.page_source
         soup = BeautifulSoup(content)
         
-        for elements in soup.find_all(tags, class_ = True):
+        for elements in soup.find_all(tag, class_ = True):
             classes.update(elements['class'])
         
         return classes
     
     def get_all_tags(self):
+        '''
+        Returns all tags that are being used in a website.
+        '''
         content = self.driver.page_source
         soup = BeautifulSoup(content)
         
         return ({tags.name for tags in soup.find_all()}, soup)
-    
-    def find_text(self, tag):
-        content = self.driver.page_source
-        soup = BeautifulSoup(content)
-        
-        text = soup.select(tag).text
-        return text
+
 
 class Starter:
     '''
@@ -118,7 +206,7 @@ class Starter:
 
     def pick_driver(self):
         '''
-        Initialize and return the driver
+        Initialize and return the web driver
         '''
         driver = webdriver.Chrome("./chromedriver")
         return driver
@@ -141,6 +229,9 @@ class Scrapper:
                                 \n'''))
         assert data_input in [1, 2]
         
+        # If url is entered then directly go to the specific url
+        ## else first make a google search and go to the site that
+        ## appears on the top of the result.
         if data_input == 2:
             url = input('Enter the url:- ')
             self.driver.get(url)
@@ -153,6 +244,10 @@ class Scrapper:
                 self.driver.get(links[0])
     
     def ask_again(self):
+        '''
+        Used after `make_input` method to choose one of 
+        the options scrap data or search any item.
+        '''
         data_input = int(input('''\n[1]. Scrap the data here    \
                                 \n[2]. Make a search here       \
                                 \n'''))
@@ -174,8 +269,7 @@ class Scrapper:
     
     def scrapper(self):
         crawler = Crawler(self.driver)
-        # tags = crawler.get_tags('a', attr={'class': '_3SkBxJ'})
-        tags = crawler.get_all_classes(tags='div')                          # get all classes
+        tags = crawler.get_all_classes(tags='div')    # get all classes
         data = dict()
         
         specs = input("Enter the names to search:  ").split(' ')
