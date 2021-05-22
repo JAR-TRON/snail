@@ -1,6 +1,7 @@
 # -------------------------
 #   Importing libraries
 # -------------------------
+import os
 from selenium import webdriver
 import pandas as pd
 import time
@@ -146,7 +147,7 @@ class Crawler:
             # Ignore the group if it has higher number of
             ## repetitive tokens/words.
             check_return = True
-            for i in tags:
+            for i in range(len(tags)):
                 if tags.count(tags[i]) < len(tags) // 2:
                     check_return = True
                 else:
@@ -208,7 +209,7 @@ class Starter:
         '''
         Initialize and return the web driver
         '''
-        driver = webdriver.Chrome("./chromedriver")
+        driver = webdriver.Chrome("./snail/chromedriver.exe")
         return driver
 
 
@@ -269,7 +270,7 @@ class Scrapper:
     
     def scrapper(self):
         crawler = Crawler(self.driver)
-        tags = crawler.get_all_classes(tags='div')    # get all classes
+        tags = crawler.get_all_classes(tag='div')    # get all classes
         data = dict()
         
         specs = input("Enter the names to search:  ").split(' ')
